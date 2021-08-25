@@ -11,11 +11,6 @@ export default function Home() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
-    const data = {
-      email, password,
-    }
-
-
     await signIn({ email, password });
   }
 
