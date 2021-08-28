@@ -15,7 +15,8 @@ type SignInCredentials = {
 }
 
 type AuthContextData = {
-    signIn(creadentials: SignInCredentials): Promise<void>;
+    signIn: (creadentials: SignInCredentials) => Promise<void>;
+    signOut: () => void;
     isAuthenticated: boolean;
     user: User;
 }
@@ -24,6 +25,9 @@ type AuthProviderProps = {
     children: ReactNode;
 }
 
+let authChannel: BroadcastChannel
+
+
 export const AuthContext = createContext({} as AuthContextData);
 
 export function signOut() {
@@ -31,12 +35,31 @@ export function signOut() {
     destroyCookie(undefined, 'nextauth.token');
     destroyCookie(undefined, 'nextauth.refreshToken');
 
+    authChannel.postMessage('signOut');
+
     Router.push('/');
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
     const [user, setUser] = useState<User>(null);
     const isAuthenticated = !!user;
+
+    useEffect(() => {
+        authChannel = new BroadcastChannel('auth');
+
+        authChannel.onmessage = (message) => {
+            switch (message.data) {
+                case 'signOut':
+                    signOut();
+                    break;
+                case 'signIn':
+                    Router.push('/dashboard');
+                    break;
+                default:
+                    break;
+            }
+        }
+    }, []);
 
     useEffect(() => {
         const { 'nextauth.token': token } = parseCookies();
@@ -79,6 +102,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
             api.defaults.headers['Authorization'] = `Bearer ${token}`
 
             Router.push('/dashboard');
+
+            // authChannel.postMessage('signIn');
         } catch (error) {
             console.log(error);
         }
@@ -86,7 +111,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, signIn, user }}>
+        <AuthContext.Provider value={{ isAuthenticated, signIn, user, signOut }}>
             {children}
         </AuthContext.Provider>
     )
